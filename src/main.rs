@@ -6,15 +6,16 @@ use std::io::{prelude::*, BufReader};
 use tabled::{Table, Tabled};
 
 static REDIRECT_TABLE: &str = "/dls_sw/prod/etc/redirector/redirect_table";
+static DLS_SW_WORK: &str = "/dls_sw/work";
 
 #[derive(Debug, Tabled)]
 struct IOC {
     name: String,
-    path: String,
+    version: String,
 }
 
 fn main() {
-    let ioc_paths = match read_redirect_table() {
+    let ioc_versions = match find_ioc_versions() {
         Ok(ioc_paths) => ioc_paths,
         Err(e) => {
             eprintln!("Error reading redirect table: {}", e);
@@ -22,12 +23,9 @@ fn main() {
         }
     };
 
-    let iocs = ioc_paths
-        .iter()
-        .map(|(name, path)| IOC {
-            name: name.to_string(),
-            path: path.to_string(),
-        })
+    let iocs = ioc_versions
+        .into_iter()
+        .map(|(name, version)| IOC { name, version })
         .collect::<Vec<_>>();
 
     let table = Table::new(iocs).to_string();
@@ -35,19 +33,25 @@ fn main() {
     println!("{}", table);
 }
 
-fn read_redirect_table() -> Result<HashMap<String, String>, Box<dyn Error>> {
+fn find_ioc_versions() -> Result<HashMap<String, String>, Box<dyn Error>> {
     let redirect_re: Regex = Regex::new(r"^(?<name>BL07I\S+)\s+(?<path>\S+)$").unwrap();
+    let dls_version_re: Regex = Regex::new(r"\/(?<version>\d+(?:-\d+)+)\/").unwrap();
 
-    let file = File::open(REDIRECT_TABLE)?;
-    let reader = BufReader::new(file);
+    let mut ioc_versions = HashMap::new();
+    for line in BufReader::new(File::open(REDIRECT_TABLE)?).lines() {
+        if let Some(captures) = redirect_re.captures(&line?) {
+            let name = captures["name"].to_string();
+            let path = &captures["path"];
 
-    let ioc_paths = reader
-        .lines()
-        .flat_map(|line| match redirect_re.captures(&line.unwrap()) {
-            Some(captures) => Some((captures["name"].to_string(), captures["path"].to_string())),
-            _ => None,
-        })
-        .collect::<HashMap<_, _>>();
+            if let Some(captures) = dls_version_re.captures(&path) {
+                ioc_versions.insert(name, captures["version"].to_string());
+            } else if path.starts_with(DLS_SW_WORK) {
+                ioc_versions.insert(name, "WORK".to_string());
+            } else {
+                ioc_versions.insert(name, "WORK?".to_string());
+            }
+        }
+    }
 
-    Ok(ioc_paths)
+    Ok(ioc_versions)
 }
