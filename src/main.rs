@@ -8,10 +8,23 @@ use tabled::{Table, Tabled};
 static REDIRECT_TABLE: &str = "/dls_sw/prod/etc/redirector/redirect_table";
 static DLS_SW_WORK: &str = "/dls_sw/work";
 
-#[derive(Debug, Tabled)]
+#[derive(Debug, Tabled, Eq, Ord)]
 struct IOC {
     name: String,
     version: String,
+}
+
+impl PartialEq for IOC {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+
+impl PartialOrd for IOC {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.name.cmp(&other.name))
+    }
 }
 
 fn main() {
@@ -23,10 +36,12 @@ fn main() {
         }
     };
 
-    let iocs = ioc_versions
+    let mut iocs = ioc_versions
         .into_iter()
         .map(|(name, version)| IOC { name, version })
         .collect::<Vec<_>>();
+
+    iocs.sort();
 
     let table = Table::new(iocs).to_string();
 
