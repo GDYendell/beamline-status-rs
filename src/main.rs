@@ -1,3 +1,4 @@
+use clap::Parser;
 use regex::Regex;
 use std::collections::HashMap;
 use std::error::Error;
@@ -20,15 +21,24 @@ impl PartialEq for IOC {
     }
 }
 
-
 impl PartialOrd for IOC {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.name.cmp(&other.name))
     }
 }
 
+#[derive(clap::Parser)]
+struct Cli {
+    /// Query pattern for IOCs - typically a beamline identifier, but can be any
+    /// subsection of the IOCs to match, or a regex pattern - e.g. 'BL07I',
+    /// 'BL07I.*EIG.*'
+    pattern: String,
+}
+
 fn main() {
-    let ioc_versions = match find_ioc_versions() {
+    let args = Cli::parse();
+
+    let ioc_versions = match find_ioc_versions(args.pattern.as_str()) {
         Ok(ioc_paths) => ioc_paths,
         Err(e) => {
             eprintln!("Error reading redirect table: {}", e);
@@ -48,8 +58,9 @@ fn main() {
     println!("{}", table);
 }
 
-fn find_ioc_versions() -> Result<HashMap<String, String>, Box<dyn Error>> {
-    let redirect_re: Regex = Regex::new(r"^(?<name>BL07I\S+)\s+(?<path>\S+)$").unwrap();
+fn find_ioc_versions(query: &str) -> Result<HashMap<String, String>, Box<dyn Error>> {
+    let redirect_re: Regex =
+        Regex::new(format!(r"^(?<name>\S*{query}\S*)\s+(?<path>\S+)$").as_str()).unwrap();
     let dls_version_re: Regex = Regex::new(r"\/(?<version>\d+(?:-\d+)+)\/").unwrap();
 
     let mut ioc_versions = HashMap::new();
