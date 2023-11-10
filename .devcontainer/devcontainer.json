@@ -1,0 +1,33 @@
+{
+	"name": "Rust Dev Container",
+	"image": "docker.io/library/rust",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"rust-lang.rust-analyzer",
+				"redhat.vscode-yaml",
+				"tsandall.opa",
+				"ms-kubernetes-tools.vscode-kubernetes-tools"
+			]
+		}
+	},
+	"features": {
+		// "ghcr.io/devcontainers/features/common-utils:2": {
+		// 	"username": "none",
+		// 	"upgradePackages": false
+		// },
+		// "ghcr.io/devcontainers/features/git-lfs:1": {}
+	},
+	"runArgs": [
+		"--security-opt=label=type:container_runtime_t"
+	],
+	"mounts": [
+		"source=${localEnv:HOME}/.ssh,target=/root/.shh,type=bind",
+		"source=${localEnv:HOME}/.inputrc,target=/root/.inputrc,type=bind",
+		"source=/dls_sw/prod,target=/dls_sw/prod,type=bind",
+		"source=/dls_sw/work,target=/dls_sw/work,type=bind",
+	],
+	"workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
+	"workspaceFolder": "${localWorkspaceFolder}",
+	"postCreateCommand": "rustup component add rustfmt clippy"
+}
